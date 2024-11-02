@@ -13,6 +13,23 @@ from .nn import (
     gamma_embedding
 )
 
+from .KANLinear import *
+
+
+# from .cbam_eca import *
+
+
+# from nn import (
+#     checkpoint,
+#     zero_module,
+#     normalization,
+#     count_flops_attn,
+#     gamma_embedding
+# )
+#
+# from KANLinear import *
+
+
 class SiLU(nn.Module):
     def forward(self, x):
         return x * torch.sigmoid(x)
@@ -146,10 +163,11 @@ class ResBlock(EmbedBlock):
 
         self.emb_layers = nn.Sequential(
             SiLU(),
-            nn.Linear(
-                emb_channels,
-                2 * self.out_channel if use_scale_shift_norm else self.out_channel,
-            ),
+            # nn.Linear(
+            #     emb_channels,
+            #     2 * self.out_channel if use_scale_shift_norm else self.out_channel,
+            # ),
+            KANLinear(emb_channels, 2 * self.out_channel if use_scale_shift_norm else self.out_channel,)
         )
         self.out_layers = nn.Sequential(
             normalization(self.out_channel),
@@ -385,9 +403,11 @@ class UNet(nn.Module):
 
         cond_embed_dim = inner_channel * 4
         self.cond_embed = nn.Sequential(
-            nn.Linear(inner_channel, cond_embed_dim),
+            # nn.Linear(inner_channel, cond_embed_dim),
+            KANLinear(inner_channel, cond_embed_dim),
             SiLU(),
-            nn.Linear(cond_embed_dim, cond_embed_dim),
+            # nn.Linear(cond_embed_dim, cond_embed_dim),
+            KANLinear(cond_embed_dim, cond_embed_dim),
         )
 
         ch = input_ch = int(channel_mults[0] * inner_channel)
@@ -419,6 +439,7 @@ class UNet(nn.Module):
                             num_head_channels=num_head_channels,
                             use_new_attention_order=use_new_attention_order,
                         )
+                        # CBAM(ch)
                     )
                 self.input_blocks.append(EmbedSequential(*layers))
                 self._feature_size += ch
@@ -462,6 +483,7 @@ class UNet(nn.Module):
                 num_head_channels=num_head_channels,
                 use_new_attention_order=use_new_attention_order,
             ),
+            # CBAM(ch),
             ResBlock(
                 ch,
                 cond_embed_dim,
@@ -496,6 +518,7 @@ class UNet(nn.Module):
                             num_head_channels=num_head_channels,
                             use_new_attention_order=use_new_attention_order,
                         )
+                        # CBAM(ch)
                     )
                 if level and i == res_blocks:
                     out_ch = ch
@@ -558,3 +581,4 @@ if __name__ == '__main__':
     x = torch.randn((b, c, h, w))
     emb = torch.ones((b, ))
     out = model(x, emb)
+    print(out.shape)
